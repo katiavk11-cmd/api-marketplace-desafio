@@ -1,5 +1,6 @@
 package br.edu.fiap.marketplace.entity;
 
+import br.edu.fiap.marketplace.exception.RegraNegocioException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -60,19 +61,25 @@ public class ConfirmacaoPagamento {
         this.status = StatusPagamento.PENDENTE;
     }
 
-    /** TODO aprovar somente pagamento pendente e finalizar o carrinho. */
     public void aprovar() {
-        throw new UnsupportedOperationException("TODO implementar aprovar");
+        if (this.status != StatusPagamento.PENDENTE) {
+            throw new RegraNegocioException("Pagamento já foi processado e só pode mudar de estado uma única vez.");
+        }
+        this.status = StatusPagamento.PAGO;
+        this.confirmadoEm = Instant.now();
+        this.carrinho.finalizar();
     }
 
-    /** TODO recusar somente pagamento pendente. */
     public void recusar() {
-        throw new UnsupportedOperationException("TODO implementar recusar");
+        if (this.status != StatusPagamento.PENDENTE) {
+            throw new RegraNegocioException("Pagamento já foi processado e só pode mudar de estado uma única vez.");
+        }
+        this.status = StatusPagamento.RECUSADO;
+        this.confirmadoEm = Instant.now();
     }
 
-    /** TODO devolver verdadeiro apenas para status PAGO. */
     public boolean estaPago() {
-        throw new UnsupportedOperationException("TODO implementar estaPago");
+        return this.status == StatusPagamento.PAGO;
     }
 
     public Long getId() { return id; }

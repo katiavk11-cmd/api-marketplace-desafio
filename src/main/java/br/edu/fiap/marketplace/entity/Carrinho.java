@@ -1,5 +1,6 @@
 package br.edu.fiap.marketplace.entity;
 
+import br.edu.fiap.marketplace.exception.RegraNegocioException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -55,24 +56,35 @@ public class Carrinho {
         this.criadoEm = Instant.now();
     }
 
-    /** TODO aceitar somente quantidade positiva enquanto o carrinho estiver aberto. */
     public void alterarQuantidade(int novaQuantidade) {
-        throw new UnsupportedOperationException("TODO implementar alterarQuantidade");
+        if (this.status != StatusCarrinho.ABERTO) {
+            throw new RegraNegocioException("Apenas carrinho ABERTO pode alterar quantidade ou ser cancelado.");
+        }
+        if (novaQuantidade <= 0) {
+            throw new RegraNegocioException("A quantidade deve ser positiva.");
+        }
+        this.quantidade = novaQuantidade;
     }
 
-    /** TODO calcular preço do produto multiplicado pela quantidade. */
     public BigDecimal calcularTotal() {
-        throw new UnsupportedOperationException("TODO implementar calcularTotal");
+        if (this.produto == null || this.produto.getPreco() == null) {
+            return BigDecimal.ZERO;
+        }
+        return this.produto.getPreco().multiply(BigDecimal.valueOf(this.quantidade));
     }
 
-    /** TODO impedir finalizar carrinho cancelado ou já finalizado. */
     public void finalizar() {
-        throw new UnsupportedOperationException("TODO implementar finalizar");
+        if (this.status != StatusCarrinho.ABERTO) {
+            throw new RegraNegocioException("Apenas carrinho ABERTO pode ser finalizado.");
+        }
+        this.status = StatusCarrinho.FINALIZADO;
     }
 
-    /** TODO impedir alterações posteriores ao cancelamento. */
     public void cancelar() {
-        throw new UnsupportedOperationException("TODO implementar cancelar");
+        if (this.status != StatusCarrinho.ABERTO) {
+            throw new RegraNegocioException("Apenas carrinho ABERTO pode ser cancelado.");
+        }
+        this.status = StatusCarrinho.CANCELADO;
     }
 
     public Long getId() { return id; }

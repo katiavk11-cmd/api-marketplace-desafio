@@ -1,10 +1,10 @@
 @baseUrl = http://localhost:8082
 @token = COLE_O_ACCESS_TOKEN_AQUI
 
-### Swagger
+### 1. Swagger OpenAPI Docs
 GET {{baseUrl}}/v3/api-docs
 
-### Cadastro público de usuário
+### 2. Cadastro público de novo usuário
 POST {{baseUrl}}/api/usuarios
 Content-Type: application/json
 
@@ -14,7 +14,7 @@ Content-Type: application/json
   "senha": "Senha@123"
 }
 
-### Login público
+### 3. Login público e obtenção de JWT
 POST {{baseUrl}}/api/auth/login
 Content-Type: application/json
 
@@ -23,10 +23,36 @@ Content-Type: application/json
   "senha": "Senha@123"
 }
 
-### Catálogo público
+### 4. Consultar dados do usuário (Protegido)
+GET {{baseUrl}}/api/usuarios/1
+Authorization: Bearer {{token}}
+
+### 5. Listar catálogo de produtos (Público)
 GET {{baseUrl}}/api/produtos
 
-### Criar carrinho protegido
+### 6. Cadastrar novo produto no catálogo (Protegido)
+POST {{baseUrl}}/api/produtos
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nome": "Teclado Mecânico RGB",
+  "descricao": "Teclado mecânico ABNT2 com switches azuis",
+  "preco": 299.90,
+  "estoque": 10,
+  "ativo": true
+}
+
+### 7. Repor estoque de produto (Protegido)
+PATCH {{baseUrl}}/api/produtos/1/estoque
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "quantidade": 5
+}
+
+### 8. Criar carrinho aberto (Protegido)
 POST {{baseUrl}}/api/carrinhos
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -37,7 +63,16 @@ Content-Type: application/json
   "quantidade": 2
 }
 
-### Criar confirmação de pagamento protegida
+### 9. Alterar quantidade do carrinho (Protegido)
+PATCH {{baseUrl}}/api/carrinhos/1/quantidade
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "quantidade": 3
+}
+
+### 10. Criar confirmação de pagamento pendente (Protegido)
 POST {{baseUrl}}/api/pagamentos
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -47,3 +82,12 @@ Content-Type: application/json
   "usuarioId": 1,
   "idPagamento": "PAY-2026-000123"
 }
+
+### 11. Aprovar pagamento (Transacional: baixa estoque e finaliza carrinho)
+PATCH {{baseUrl}}/api/pagamentos/1/aprovar
+Authorization: Bearer {{token}}
+
+### 12. Recusar pagamento (Caso de teste)
+PATCH {{baseUrl}}/api/pagamentos/1/recusar
+Authorization: Bearer {{token}}
+

@@ -1,77 +1,107 @@
 # Marketplace Desafio API
 
-Projeto inicial para um grupo completar uma API multicamada com Spring Boot, JPA, PostgreSQL, BCrypt, JWT e Swagger.
+API multicamada desenvolvida com **Java 25**, **Spring Boot**, **PostgreSQL**, **BCrypt**, **JWT** e **OpenAPI / Swagger**.
 
-## O que já está pronto
+---
 
-- JDK 25 e Maven;
-- dependências web, JPA, validação, PostgreSQL, OAuth2 Resource Server e Springdoc;
-- entidades e relacionamentos JPA;
-- construtores e assinaturas dos comportamentos das entidades;
-- DTOs completos com validação e `@Schema`;
-- configurações de BCrypt, JWT, segurança e OpenAPI;
-- `application.properties` preparado para conexão local ou por variáveis;
-- scripts SQL para database, tabelas, carga e consultas;
-- classes das camadas controller, service, repository, security e test.
+## Integrantes do Grupo e Divisão de Papéis
 
-As regras das entidades lançam `UnsupportedOperationException` e as demais camadas estão vazias de propósito. Elas fazem parte do desafio.
+1. **Integrante 1 - Domínio e Banco**: Entities, invariantes e alinhamento com scripts SQL.
+2. **Integrante 2 - Usuário e Autenticação**: Cadastro, criptografia BCrypt, login e emissão de JWT.
+3. **Integrante 3 - Catálogo**: Administração de produtos, preço, controle de estoque e endpoints.
+4. **Integrante 4 - Carrinho**: Criação de carrinhos, alteração de quantidade, cálculo de totais e validações.
+5. **Integrante 5 - Pagamento e Qualidade**: Confirmação transacional de pagamentos, exceções globais, Swagger e testes.
 
-## Banco local
+---
 
-1. Execute `sql/01_criar_database.sql` conectado ao database `postgres`, com autocommit.
-2. Crie uma conexão para `marketplace_desafio`.
-3. Execute `sql/02_criar_tabelas.sql`.
-4. Execute `sql/03_carga_dados.sql`.
-5. Confira os relacionamentos com `sql/04_consultas_evidencias.sql`.
+## Decisões de Negócio
 
-Por padrão, a aplicação usa:
+> [!IMPORTANT]
+> **Momento da Baixa de Estoque**:
+> A baixa física do estoque do produto ocorre **unicamente no momento da aprovação do pagamento** em uma operação transacional atômica (`@Transactional`). Caso o saldo seja insuficiente na aprovação ou ocorra qualquer erro na transação, a operação faz rollback completo e nenhuma alteração parcial permanece no banco de dados.
+
+> [!NOTE]
+> **Segurança de Senha e Hash**:
+> A entidade `Usuario` armazena somente o hash codificado via BCrypt `PasswordEncoder`. A senha — assim como seu hash — nunca é exposta em `UsuarioResponse`, logs de aplicação ou mensagens de erro.
+
+---
+
+## Banco de Dados Local (PostgreSQL)
+
+1. Conecte-se ao banco `postgres` e execute o script `sql/01_criar_database.sql` (fora de transação).
+2. Conecte-se ao banco `marketplace_desafio`.
+3. Execute o DDL de tabelas e índices em `sql/02_criar_tabelas.sql`.
+4. Preencha a carga inicial de dados com `sql/03_carga_dados.sql`.
+5. Valide os relacionamentos e estados com `sql/04_consultas_evidencias.sql`.
+
+### Configuração de Variáveis de Ambiente (opcional)
 
 ```properties
-spring.datasource.url=jdbc:postgresql://localhost:5432/marketplace_desafio
-spring.datasource.username=postgres
-spring.datasource.password=
+spring.datasource.url=${DB_URL:jdbc:postgresql://localhost:5432/marketplace_desafio}
+spring.datasource.username=${DB_USER:postgres}
+spring.datasource.password=${DB_PASSWORD:sua_senha}
 ```
 
-Também é possível configurar sem editar o arquivo:
+---
+
+## Como Executar a Aplicação
 
 ```bash
-export DB_URL='jdbc:postgresql://localhost:5432/marketplace_desafio'
-export DB_USER='postgres'
-export DB_PASSWORD='sua_senha'
-```
-
-## Executar
-
-```bash
-JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home \
-PATH=/Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin:$PATH \
 mvn spring-boot:run
 ```
 
-Swagger: `http://localhost:8082/swagger-ui.html`
+- **Swagger UI**: `http://localhost:8082/swagger-ui.html`
+- **OpenAPI JSON**: `http://localhost:8082/v3/api-docs`
 
-OpenAPI JSON: `http://localhost:8082/v3/api-docs`
+---
 
-## Segurança preparada
+## Executar os Testes Automatizados
 
-Rotas públicas:
+```bash
+mvn test
+```
 
-- `POST /api/usuarios`;
-- `POST /api/auth/login`;
-- `GET /api/produtos` e `GET /api/produtos/{id}`;
-- Swagger e OpenAPI.
+A suíte inclui:
+- `CatalogoProdutoTest`: Teste unitário de proteção de estoque (saldo inalterado em baixa inválida).
+- `CarrinhoTest`: Teste unitário de cálculo de total e proteção contra alteração em carrinho finalizado.
+- `CarrinhoControllerIntegrationTest`: Teste de integração WebMvc com `MockMvc` para `POST /api/carrinhos` (respostas HTTP 201 + Header Location e 400 em payload inválido).
 
-Todas as outras rotas exigem `Authorization: Bearer <token>`.
+---
 
-## Ordem sugerida de implementação
+## Matriz de Rotas HTTP
 
-1. Comportamentos das entidades.
-2. Exceções de domínio e novos métodos no handler global.
-3. Consultas derivadas nos repositories.
-4. Services e limites `@Transactional`.
-5. Controllers e anotações OpenAPI das rotas.
-6. `JwtService`, entrada de autenticação e login.
-7. Dois testes unitários e um teste de integração.
-8. Execução dos requests e conferência das tabelas.
+| Método | Rota | Acesso | Descrição / Retorno Esperado |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/usuarios` | Público | `201 Created` + Header `Location` |
+| `POST` | `/api/auth/login` | Público | `200 OK` (devolve TokenResponse JWT) |
+| `GET` | `/api/produtos` | Público | `200 OK` (lista catálogo) |
+| `GET` | `/api/produtos/{id}` | Público | `200 OK` ou `404 Not Found` |
+| `GET` | `/api/usuarios/{id}` | Protegido | `200 OK` ou `404 Not Found` |
+| `POST` | `/api/produtos` | Protegido | `201 Created` + Header `Location` |
+| `PUT` | `/api/produtos/{id}` | Protegido | `200 OK` (atualiza dados válidos) |
+| `PATCH` | `/api/produtos/{id}/estoque` | Protegido | `200 OK` (reposição de estoque) |
+| `POST` | `/api/carrinhos` | Protegido | `201 Created` + Header `Location` |
+| `GET` | `/api/carrinhos/{id}` | Protegido | `200 OK` ou `404 Not Found` |
+| `GET` | `/api/carrinhos/usuario/{usuarioId}` | Protegido | `200 OK` (carrinhos do usuário) |
+| `PATCH` | `/api/carrinhos/{id}/quantidade` | Protegido | `200 OK`, `400 Bad Request` ou `409 Conflict` |
+| `DELETE` | `/api/carrinhos/{id}` | Protegido | `204 No Content` (cancela carrinho aberto) |
+| `POST` | `/api/pagamentos` | Protegido | `201 Created` + Header `Location` |
+| `GET` | `/api/pagamentos/{id}` | Protegido | `200 OK` ou `404 Not Found` |
+| `PATCH` | `/api/pagamentos/{id}/aprovar` | Protegido | `200 OK` (operação transacional) |
+| `PATCH` | `/api/pagamentos/{id}/recusar` | Protegido | `200 OK` (recusa pagamento) |
 
-O documento de desafio na pasta superior descreve propriedades, regras, rotas, divisão do grupo e definição de pronto.
+---
+
+## Definição de Pronto (Checklist)
+
+- [x] Projeto compila e `mvn test` executa com sucesso (`BUILD SUCCESS`).
+- [x] Entidades implementam comportamentos sem setters públicos genéricos.
+- [x] Repositórios com consultas derivadas Spring Data JPA.
+- [x] Services tratam validações, orquestração e limites de transação (`@Transactional`).
+- [x] Controllers usam DTOs com Bean Validation, status HTTP coerentes, Header Location e OpenAPI annotations.
+- [x] Senha criptografada com BCrypt e sem vazamento em respostas.
+- [x] Token JWT gerado no login e utilizado para autenticar rotas protegidas no Swagger (`bearerAuth`).
+- [x] Tratamento global de exceções retornando formato padronizado JSON (`ApiErrorResponse`) para 400, 401, 404, 409 e 500.
+- [x] Aprovação de pagamento realiza baixa de estoque e finalização do carrinho atomicamente.
+- [x] Testes unitários e de integração passando.
+
